@@ -11,7 +11,7 @@ const config = {
     trustServerCertificate: true,
   },
 };
-const poolPromis = new sql.ConnectionPool(config)
+const poolPromise = new sql.ConnectionPool(config)
   .connect()
   .then((pool) => {
     console.log("Connected to SQL Server");
@@ -20,4 +20,4 @@ const poolPromis = new sql.ConnectionPool(config)
   .catch((err) => {
     console.log("Database connection failed", err.message);
   });
-module.exports = { sql, poolPromis };
+module.exports = { sql, poolPromise };
