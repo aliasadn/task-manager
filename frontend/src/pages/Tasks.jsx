@@ -2,9 +2,20 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import client from "../api/client";
 
+const PRIORITY_LABELS = { low: "Low", medium: "Medium", high: "High" };
+
+function isOverdue(task) {
+  if (!task.DueDate || task.IsDone) return false;
+  const today = new Date().toISOString().slice(0, 10);
+  return task.DueDate.slice(0, 10) < today;
+}
+
 export default function Tasks() {
   const [tasks, setTasks] = useState([]);
   const [title, setTitle] = useState("");
+  const [priority, setPriority] = useState("medium");
+  const [dueDate, setDueDate] = useState("");
+  const [filter, setFilter] = useState("all");
   const [error, setError] = useState("");
   const navigate = useNavigate();
   const userName = localStorage.getItem("userName");
@@ -30,9 +41,15 @@ export default function Tasks() {
     e.preventDefault();
     if (!title.trim()) return;
     try {
-      const res = await client.post("/tasks", { title });
+      const res = await client.post("/tasks", {
+        title,
+        priority,
+        dueDate: dueDate || null,
+      });
       setTasks([res.data, ...tasks]);
       setTitle("");
+      setDueDate("");
+      setPriority("medium");
     } catch (err) {
       setError("Could not add task");
     }
@@ -64,40 +81,106 @@ export default function Tasks() {
     navigate("/login");
   }
 
+  const total = tasks.length;
+  const doneCount = tasks.filter((t) => t.IsDone).length;
+  const leftCount = total - doneCount;
+
+  const visibleTasks = tasks.filter((t) => {
+    if (filter === "active") return !t.IsDone;
+    if (filter === "done") return t.IsDone;
+    return true;
+  });
+
   return (
     <div className="card">
       <div className="header">
         <div>
           <h1>Hi, {userName} 👋</h1>
-          <p className="subtitle">
-            {tasks.filter((t) => !t.IsDone).length} task(s) left to do
-          </p>
+          <p className="subtitle">{leftCount} task(s) left to do</p>
         </div>
         <button className="secondary" onClick={logout}>
           Logout
         </button>
       </div>
 
-      <form onSubmit={addTask} className="add-form">
+      <div className="stats">
+        <div className="stat">
+          <strong>{total}</strong>
+          <span>Total</span>
+        </div>
+        <div className="stat">
+          <strong>{leftCount}</strong>
+          <span>Left</span>
+        </div>
+        <div className="stat">
+          <strong>{doneCount}</strong>
+          <span>Done</span>
+        </div>
+      </div>
+
+      <form onSubmit={addTask} className="new-task">
         <input
           placeholder="What do you need to do?"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
         />
-        <button type="submit">Add</button>
+        <div className="new-task-row">
+          <select
+            value={priority}
+            onChange={(e) => setPriority(e.target.value)}
+          >
+            <option value="low">Low priority</option>
+            <option value="medium">Medium priority</option>
+            <option value="high">High priority</option>
+          </select>
+          <input
+            type="date"
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+          />
+          <button type="submit">Add</button>
+        </div>
       </form>
+
+      <div className="filters">
+        {[
+          ["all", "All"],
+          ["active", "To do"],
+          ["done", "Done"],
+        ].map(([key, label]) => (
+          <button
+            key={key}
+            className={filter === key ? "tab active" : "tab"}
+            onClick={() => setFilter(key)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
       {error && <p className="error">{error}</p>}
 
       <ul className="task-list">
-        {tasks.map((task) => (
+        {visibleTasks.map((task) => (
           <li key={task.Id} className={task.IsDone ? "done" : ""}>
             <input
               type="checkbox"
               checked={task.IsDone}
               onChange={() => toggleTask(task)}
             />
-            <span>{task.Title}</span>
+            <div className="task-info">
+              <span>{task.Title}</span>
+              <div className="meta">
+                <span className={`badge ${task.Priority}`}>
+                  {PRIORITY_LABELS[task.Priority]}
+                </span>
+                {task.DueDate && (
+                  <span className={isOverdue(task) ? "due overdue" : "due"}>
+                    📅 {task.DueDate.slice(0, 10)}
+                  </span>
+                )}
+              </div>
+            </div>
             <button className="danger" onClick={() => deleteTask(task.Id)}>
               Delete
             </button>
@@ -105,8 +188,12 @@ export default function Tasks() {
         ))}
       </ul>
 
-      {tasks.length === 0 && (
-        <p className="empty">Nothing here yet. Add your first task above ✨</p>
+      {visibleTasks.length === 0 && (
+        <p className="empty">
+          {tasks.length === 0
+            ? "Nothing here yet. Add your first task above ✨"
+            : "No tasks in this view."}
+        </p>
       )}
     </div>
   );

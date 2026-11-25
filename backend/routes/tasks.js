@@ -3,9 +3,9 @@ const db = require("../db");
 const authMiddleware = require("../middleware/auth");
 
 const router = express.Router();
-
-// همه‌ی مسیرهای این فایل نیاز به توکن دارن
 router.use(authMiddleware);
+
+const PRIORITIES = ["low", "medium", "high"];
 
 // لیست وظیفه‌ها
 router.get("/", async (req, res) => {
@@ -15,7 +15,8 @@ router.get("/", async (req, res) => {
       .request()
       .input("userId", db.sql.Int, req.userId)
       .query(
-        "SELECT Id, Title, Description, IsDone, CreatedAt FROM Tasks WHERE UserId = @userId ORDER BY CreatedAt DESC",
+        `SELECT Id, Title, Description, IsDone, Priority, DueDate, CreatedAt
+         FROM Tasks WHERE UserId = @userId ORDER BY CreatedAt DESC`,
       );
     res.json(result.recordset);
   } catch (err) {
@@ -27,9 +28,12 @@ router.get("/", async (req, res) => {
 // ساخت وظیفه
 router.post("/", async (req, res) => {
   try {
-    const { title, description } = req.body;
+    const { title, description, priority, dueDate } = req.body;
     if (!title) {
       return res.status(400).json({ message: "Title is required" });
+    }
+    if (priority && !PRIORITIES.includes(priority)) {
+      return res.status(400).json({ message: "Invalid priority" });
     }
 
     const pool = await db.poolPromise;
@@ -38,8 +42,12 @@ router.post("/", async (req, res) => {
       .input("userId", db.sql.Int, req.userId)
       .input("title", db.sql.NVarChar, title)
       .input("description", db.sql.NVarChar, description || null)
+      .input("priority", db.sql.NVarChar, priority || "medium")
+      .input("dueDate", db.sql.Date, dueDate || null)
       .query(
-        "INSERT INTO Tasks (UserId, Title, Description) OUTPUT INSERTED.* VALUES (@userId, @title, @description)",
+        `INSERT INTO Tasks (UserId, Title, Description, Priority, DueDate)
+         OUTPUT INSERTED.*
+         VALUES (@userId, @title, @description, @priority, @dueDate)`,
       );
     res.status(201).json(result.recordset[0]);
   } catch (err) {
@@ -51,7 +59,10 @@ router.post("/", async (req, res) => {
 // ویرایش وظیفه
 router.put("/:id", async (req, res) => {
   try {
-    const { title, description, isDone } = req.body;
+    const { title, description, isDone, priority, dueDate } = req.body;
+    if (priority && !PRIORITIES.includes(priority)) {
+      return res.status(400).json({ message: "Invalid priority" });
+    }
 
     const pool = await db.poolPromise;
     const result = await pool
@@ -61,11 +72,15 @@ router.put("/:id", async (req, res) => {
       .input("title", db.sql.NVarChar, title ?? null)
       .input("description", db.sql.NVarChar, description ?? null)
       .input("isDone", db.sql.Bit, isDone ?? null)
+      .input("priority", db.sql.NVarChar, priority ?? null)
+      .input("dueDate", db.sql.Date, dueDate ?? null)
       .query(
         `UPDATE Tasks
          SET Title = COALESCE(@title, Title),
              Description = COALESCE(@description, Description),
-             IsDone = COALESCE(@isDone, IsDone)
+             IsDone = COALESCE(@isDone, IsDone),
+             Priority = COALESCE(@priority, Priority),
+             DueDate = COALESCE(@dueDate, DueDate)
          OUTPUT INSERTED.*
          WHERE Id = @id AND UserId = @userId`,
       );
