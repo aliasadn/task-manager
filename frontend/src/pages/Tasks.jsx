@@ -67,7 +67,12 @@ export default function Tasks() {
   return (
     <div className="card">
       <div className="header">
-        <h1>{userName}'s tasks</h1>
+        <div>
+          <h1>Hi, {userName} 👋</h1>
+          <p className="subtitle">
+            {tasks.filter((t) => !t.IsDone).length} task(s) left to do
+          </p>
+        </div>
         <button className="secondary" onClick={logout}>
           Logout
         </button>
@@ -101,7 +106,7 @@ export default function Tasks() {
       </ul>
 
       {tasks.length === 0 && (
-        <p className="empty">No tasks yet. Add your first one!</p>
+        <p className="empty">Nothing here yet. Add your first task above ✨</p>
       )}
     </div>
   );

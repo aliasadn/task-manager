@@ -22,7 +22,8 @@ export default function Register() {
 
   return (
     <div className="card">
-      <h1>Create account</h1>
+      <h1>Create your account</h1>
+      <p className="subtitle">Organize your day in under a minute.</p>
       <form onSubmit={handleSubmit}>
         <input
           placeholder="Name"

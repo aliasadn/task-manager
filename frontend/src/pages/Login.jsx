@@ -23,7 +23,8 @@ export default function Login() {
 
   return (
     <div className="card">
-      <h1>Welcome back</h1>
+      <h1>Welcome back 👋</h1>
+      <p className="subtitle">Log in to pick up where you left off.</p>
       <form onSubmit={handleSubmit}>
         <input
           type="email"
